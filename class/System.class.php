@@ -1,13 +1,7 @@
 <?php
 class Sys
 {
-	public static function configPath()
-	{
-		$dir = dirname(__FILE__);
-		$dir = str_replace('class', '', $dir);
-		return $dir.'/config.php';
-	}
-
+	//проверяем есть ли интернет
 	public static function checkInternet()
 	{
 		$page = file_get_contents('http://ya.ru');
@@ -17,17 +11,23 @@ class Sys
 			return FALSE;
 	}
 	
+	//проверяем есть ли конфигурационный файл
 	public static function checkConfigExist()
 	{
-		if (file_exists(Sys::configPath()))
+		$dir = dirname(__FILE__);
+		$dir = str_replace('class', '', $dir);
+		if (file_exists($dir.'/config.php'))
 			return TRUE;
 		else
 			return FALSE;
 	}
 
+	//проверяем правильно ли заполнен конфигурационный файл
 	public static function checkConfig()
 	{
-		include_once(Sys::configPath());
+		$dir = dirname(__FILE__)."/../";
+		include_once $dir."config.php";
+		
 		$confArray = Config::$confArray;
 		foreach ($confArray as $key => $val)
 		{
@@ -37,6 +37,7 @@ class Sys
 		return TRUE;
 	}
 
+	//проверяем установлено ли расширение CURL
 	public static function checkCurl()
 	{
 		if (in_array("curl", get_loaded_extensions()))
@@ -44,7 +45,8 @@ class Sys
 		else
 			return FALSE;
 	}
-	
+
+	//проверяем есть ли на конце пути /
 	public static function checkPath($path)
 	{
 		if (substr($path, -1) == '/')
@@ -54,24 +56,84 @@ class Sys
 		return $path;
 	}
 	
+	//проверка на возхможность записи в директорию
 	public static function checkWriteToPath($path)
 	{
 		return is_writable($path);
 	}
-	
+
+	//версия системы
 	public static function version()
 	{
-		return '0.7.7';
+		return '0.8.1';
 	}
 
+	//проверка обновлений системы
 	public static function checkUpdate()
 	{
-		$xml = simplexml_load_file('http://korphome.ru/torrent_monitor/version.xml');
-		if (Sys::version() < $xml->current_version)
-			return TRUE;
+		$xml = @simplexml_load_file('http://korphome.ru/torrent_monitor/version.xml');
+		if (false !== $xml)
+		{
+			if (Sys::version() < $xml->current_version)
+				return TRUE;
+			else
+				return FALSE;
+		}
 		else
-			return FALSE;
+			Errors::setWarnings($tracker, 'update');
 	}
+	
+	//обёртка для CURL, для более удобного использования
+	public static function getUrlContent($param = null)
+    {
+    	if (is_array($param))
+    	{
+    		$ch = curl_init();
+    		if ($param['type'] == 'POST')
+    			curl_setopt($ch, CURLOPT_POST, 1);
+
+    		if ($param['type'] == 'GET')
+    			curl_setopt($ch, CURLOPT_HTTPGET, 1);
+
+    		curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:16.0) Gecko/20100101 Firefox/16.0");
+
+    		if (isset($param['header']))
+    			curl_setopt($ch, CURLOPT_HEADER, 1);
+
+   			curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+
+    		if (isset($param['returntransfer']))
+    			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+
+    		curl_setopt($ch, CURLOPT_URL, $param['url']);
+
+    		if (isset($param['postfields']))
+    			curl_setopt($ch, CURLOPT_POSTFIELDS, $param['postfields']);
+
+    		if (isset($param['cookie']))
+    			curl_setopt($ch, CURLOPT_COOKIE, $param['cookie']);
+
+    		if (isset($param['sendHeader']))
+    		{
+    			foreach ($param['sendHeader'] as $k => $v)
+    			{
+    				$header[] = $k.': '.$v."\r\n";
+    			}
+    			curl_setopt($ch, CURLOPT_HTTPHEADER, $header);
+    		}		
+
+    		if (isset($param['referer']))
+    			curl_setopt($ch, CURLOPT_REFERER, $param['referer']);
+
+    		$result = curl_exec($ch);
+    		curl_close($ch);
+
+    		if (isset($param['convert']))
+    			$result = iconv($param['convert'][0], $param['convert'][1], $result);
+
+    		return $result;
+    	}
+    }
 	
 	//Получаем заголовок страницы
 	public static function getHeader($url)
@@ -80,20 +142,21 @@ class Sys
 		$tracker = $Purl["host"];
 		$tracker = preg_replace('/www\./', '', $tracker);
 	
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, "{$url}");
-		curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-		$result = curl_exec($ch);
-		curl_close($ch);
+		$forumPage = Sys::getUrlContent(
+            array(
+                'type'           => 'GET',
+                'returntransfer' => 1,
+                'url'            => $url,
+            )
+		);
 
 		if ($tracker != 'rutor.org')
-			$result = iconv("windows-1251", "utf-8//IGNORE", $result);
+			$forumPage = iconv("windows-1251", "utf-8//IGNORE", $forumPage);
 
 		if ($tracker == 'tr.anidub.com')
 			$tracker = 'anidub.com';
 		
-		preg_match("/<title>(.*)<\/title>/is", $result, $array);
+		preg_match("/<title>(.*)<\/title>/is", $forumPage, $array);
 		if ( ! empty($array[1]))
 		{
 			$name = $array[1];
@@ -101,8 +164,8 @@ class Sys
 				$name = substr($name, 15, -50);
 			if ($tracker == 'kinozal.tv')
 				$name = substr($name, 0, -22);
-			if ($tracker == 'nnm-club.ru')
-				$name = substr($name, 0, -23);
+			if ($tracker == 'nnm-club.me')
+				$name = substr($name, 0, -20);
 			if ($tracker == 'rutracker.org')
 				$name = substr($name, 0, -34);
 			if ($tracker == 'rutor.org')
@@ -114,26 +177,26 @@ class Sys
 	}
 	
 	//преобразуем месяц из числового в текстовый
-	public static function dateNumToString($data)
+	public static function dateNumToString($date)
 	{
-		switch ($data)
-		{
-			case 1: $m="Янв"; break;
-			case 2: $m="Фев"; break;
-			case 3: $m="Мар"; break;
-			case 4: $m="Апр"; break;
-			case 5: $m="Мая"; break;
-			case 6: $m="Июн"; break;
-			case 7: $m="Июл"; break;
-			case 8: $m="Авг"; break;
-			case 9: $m="Сен"; break;
-			case 10: $m="Окт"; break;
-			case 11: $m="Ноя"; break;
-			case 12: $m="Дек"; break;
-		}
-		return $m;
+	    $monthes_num = array("/10/", "/11/", "/12/", "/0?1/", "/0?2/", "/0?3/", "/0?4/", "/0?5/", "/0?6/", "/0?7/", "/0?8/", "/0?9/");
+	    $monthes_ru = array("Окт", "Ноя", "Дек", "Янв", "Фев", "Мар", "Апр", "Мая", "Июн", "Июл", "Авг", "Сен");
+	    $month = preg_replace($monthes_num, $monthes_ru, $date);
+	    
+	    return $month;
 	}
 	
+	//преобразуем месяц из текстового в числовый
+	public static function dateStringToNum($date)
+	{
+	    $monthes = array("/янв|Янв|Jan/i", "/фев|Фев|Feb/i", "/мар|Мар|Mar/i", "/апр|Апр|Apr/i", "/мая|май|Мая|мая|May/i", "/июн|Июн|Jun/i", "/июл|Июл|Jul/i", "/авг|Авг|Aug/i", "/сен|Сен|Sep/i", "/окт|Окт|Oct/i", "/ноя|Ноя|Nov/i", "/дек|Дек|Dec/i");
+	    $monthes_num = array("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12");
+	    $month = preg_replace($monthes, $monthes_num, $date);
+	    
+	    return $month;
+	}
+	
+	//записываем время последнего запуска системы
 	public static function lastStart()
 	{
         $dir = dirname(__FILE__);

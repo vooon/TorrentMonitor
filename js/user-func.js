@@ -71,7 +71,6 @@ function expand(id)
 //Передаём пароль
 $("#enter").submit(function() {
 	var $form = $(this),p = $form.find('input[name="password"]').val();
-	
 	$('#notice').empty().append('Обрабатывается запрос...').fadeIn();
 	$.post("action.php",{action: 'enter', password: p},
 		function(data) {
@@ -79,8 +78,10 @@ $("#enter").submit(function() {
 				$('#notice').empty().attr('background', '#FF6633').append(data.msg).delay(3000).fadeOut(400);
 			else
           		document.location.reload();
+          	console.log(data.error)
 		}, "json"
 	);
+	
 	return false;
 });
 
@@ -418,17 +419,19 @@ function del(id)
 //Выводим логин/пароль в зависимости от выбранного в списке
 function changefunc() 
 {
-	var select = document.getElementById("selectfunc");
-	var a = ['anidub.com', 'kinozal.tv', 'lostfilm.tv', 'nnm-club.ru', 'novafilm.tv', 'rutracker.org'];
-	for (var i = 0; i < a.length; i++)
-	{
-		var e = a[i];
-		if (select.value == e)
-			var d = "block";    
-		else
-			var d = "none";
-		document.getElementById(e + "_label").style.display = d;
-	}
+    var select = document.getElementById("selectfunc");
+    var selectedText = select.options[select.selectedIndex].text;
+    var a = ['anidub.com', 'kinozal.tv', 'lostfilm.tv', 'nnm-club.me', 'novafilm.tv', 'rutracker.org'];
+    for (var i = 0; i < a.length; i++)
+    {
+        var e = a[i];
+        var d;
+        if (selectedText == e)
+            d = "block";
+        else
+            d = "none";
+        document.getElementById(e + "_label").style.display = d;
+    }
 }
 
 //Меняем checkbox на radiobutton
@@ -436,7 +439,7 @@ function changeField()
 {
 	var tracker = document.getElementById("tracker").value;
 	if (tracker == 'lostfilm.tv')
-		$('#changedField').empty().append('<span class="quality"><input type="radio" name="hd" value="0"> SD качество<br/><input type="radio" name="hd" value="1"> HD качество<br/><input type="radio" name="hd" value="2"> HD MP4</span>');
+		$('#changedField').empty().append('<span class="quality"><input type="radio" name="hd" value="0"> SD качество<br /><input type="radio" name="hd" value="1"> HD качество<br /><input type="radio" name="hd" value="2"> HD MP4</span>');
 	if (tracker == 'novafilm.tv')
 		$('#changedField').empty().append('<input type="checkbox" name="hd"> HD качество</label>');
 }

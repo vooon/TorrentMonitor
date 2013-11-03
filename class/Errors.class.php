@@ -14,6 +14,7 @@ class Errors
     	Errors::write('rss_parse_false', 'Ошибка при чтении XML файла RSS ленты.');
     	Errors::write('max_torrent', 'Вы использовали доступное Вам количество торрент-файлов в сутки.');
     	Errors::write('captcha', 'При логине запрашивается капча, следует отключить мониторинг на некоторое время.');
+    	Errors::write('update', 'Невозможно проверить обновление системы.');
 	}
 	
 	public static function getInstance()
@@ -46,8 +47,8 @@ class Errors
         $date = date('Y-m-d H:i:s');
     	Database::setWarnings($date, $tracker, $warning);
     	$countErrors = Database::getWarningsCount($tracker);
-    	if ($countErrors == 1)
-			Notification::sendNotification('warning', $date, $tracker, $message);
+    	if ($countErrors[0]['count'] == 1)
+			Notification::sendNotification('warning', $date, $tracker, Errors::getWarning($warning));
     }
 }
 ?>

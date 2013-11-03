@@ -32,7 +32,7 @@
     </p>
     <p>
         <label class="label-name"></label>
-        <label id="changedField"></label>
+        <span id="changedField"></span>
     </p>
     <button class="form-button">Добавить</button>
 </form>
@@ -45,7 +45,7 @@
         <label class="label-name">Трекер</label>
         <select name="tracker">
             <option></option>
-            <option>nnm-club.ru</option>
+            <option>nnm-club.me</option>
             <option>rutracker.org</option>
             <option>tfile.me</option>
         </select>
